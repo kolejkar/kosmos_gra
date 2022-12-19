@@ -1,0 +1,12 @@
+#ifndef _ARMO_H_
+#define _ARMO_H_
+#include "Ship.h"
+
+struct Armo
+{
+        int x,y; //pozycja
+        int Ship *attacked; //statek do atakowania
+        int demage; //si³a ra¿enia
+};
+
+#endif _ARMO_H_

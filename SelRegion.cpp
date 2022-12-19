@@ -1,0 +1,285 @@
+//---------------------------------------------------------------------------
+
+
+#pragma hdrstop
+
+#include "SelRegion.h"
+#include <math.h>
+#include <iostream>
+#include <fstream>
+#include <stdlib.h>
+#include <dir.h>
+#include <stdio.h>
+
+#pragma package(smart_init)
+ using namespace std;
+ //seed
+int seed=0;
+//---------------------------------------------------------------------------
+void Region::Czysc()
+{
+        for (int i=0;i<100;i++)
+        {
+                for (int j=0;j<100;j++)
+                {
+                        if (maps[i][j]!=NULL)
+                        {
+                                delete maps[i][j];
+                                maps[i][j]=NULL;
+                        }
+                }
+        }
+}
+//---------------------------------------------------------------------------
+bool Region::Zapisz()
+{
+        ofstream plik;
+        string path="Maps\\"+intToStr(seed);
+        _mkdir(path.c_str());
+        path="Maps\\"+intToStr(seed)+"\\"+intToStr(regx)+"."+intToStr(regy);
+        plik.open(path.c_str(),ios::trunc);
+        for (int i=0;i<100;i++)
+        {
+                for (int j=0;j<100;j++)
+                {
+                        if (maps[i][j]==NULL)
+                        {
+                                plik << "-1 ";
+                        }
+                        else
+                        {
+                                char tmp[32];
+                                sprintf(tmp,"%d ",maps[i][j]->id);
+                                plik << tmp;
+                                sprintf(tmp,"%d ",maps[i][j]->type);
+                                plik << tmp;
+                                if (maps[i][j]->id==1)
+                                {
+                                        rock *rc=(rock *)maps[i][j];
+                                        sprintf(tmp,"%d ",rc->gold);
+                                        plik << tmp;
+                                }
+                                if (maps[i][j]->id==2)
+                                {
+                                        planet *pl=(planet *)maps[i][j];
+                                        sprintf(tmp,"%d ",pl->air);
+                                        plik << tmp;
+                                        if (pl->air)
+                                        {
+                                                sprintf(tmp,"%d ",pl->team);
+                                                plik << tmp;
+                                                sprintf(tmp,"%d ",pl->offer);
+                                                plik << tmp;
+                                        }
+                                }
+                        }
+                }
+        }
+        plik.close();
+        return true;
+}
+//---------------------------------------------------------------------------
+bool Region::Wczytaj(int regX, int regY)
+{
+        regx=regX;
+        regy=regY;
+        ifstream plik;
+        string path="Maps\\"+intToStr(seed)+"\\"+intToStr(regx)+"."+intToStr(regy);
+        plik.open(path.c_str());
+        if (plik.fail())
+        {
+                plik.close();
+                Losuj();
+                Zapisz();
+                return false;
+        }
+        for (int i=0;i<100;i++)
+        {
+                for (int j=0;j<100;j++)
+                {
+                        string tmp;
+                        int typ;
+                        plik >> tmp;
+                        typ=atoi(tmp.c_str());
+                        if (typ!=-1)
+                        {
+                                if (typ==0)
+                                {
+                                        star *gw=new star();
+                                        gw->id=typ;
+                                        plik >> tmp;
+                                        gw->type=atoi(tmp.c_str());
+                                        maps[i][j]=(object *)gw;
+                                }
+                                else
+                                if (typ==1)
+                                {
+                                        rock *rc=new rock();
+                                        rc->id=typ;
+                                        plik >> tmp;
+                                        rc->type=atoi(tmp.c_str());
+                                        plik >> tmp;
+                                        rc->gold=atoi(tmp.c_str());
+                                        maps[i][j]=(object *)rc;
+                                }
+                                else
+                                if (typ==2)
+                                {
+                                        planet *pl=new planet();
+                                        pl->id=typ;
+                                        plik >> tmp;
+                                        pl->type=atoi(tmp.c_str());
+                                        plik >> tmp;
+                                        pl->air=atoi(tmp.c_str());
+                                        if (pl->air)
+                                        {
+                                                plik >> tmp;
+                                                pl->team=atoi(tmp.c_str());
+                                                plik >> tmp;
+                                                pl->offer=atoi(tmp.c_str());
+                                        }
+                                        maps[i][j]=(object *)pl;
+                                }
+                        }
+                }
+        }
+        plik.close();
+        return true;
+}
+//---------------------------------------------------------------------------
+Region::Region(int regX, int regY)
+{
+        for (int i=0;i<100;i++)
+        {
+                for (int j=0;j<100;j++)
+                {
+                        maps[i][j]=NULL;
+                }
+        }
+        Wczytaj(regX,regY);
+        Zapisz();
+}
+//---------------------------------------------------------------------------
+bool Region::Losuj()
+{
+        bool startreg=false;
+        Czysc();
+        star *gw=new star();
+        gw->type=rand()%3+1;
+        gw->id=0;
+        maps[47][47]=(object *)gw;
+        if (regx==0 && regy==0)
+        {
+                startreg=true;
+        }
+        for (int i=1;i<=rand()%20+1;i++)
+        {
+                float r=i*2+20;
+                int typ=rand()%100;
+                int angle=rand()%360;
+                if (typ>78)
+                {
+                        rock *rc=new rock();
+                        rc->gold=rand()%1000;
+                        rc->id=1;
+                        rc->type=rand()%8+1;
+                        rc->gold=rand()%5*100;
+                        maps[(int)floor(r*cos((angle*M_PI)/180)+50.5)][(int)floor(r*sin((angle*M_PI)/180)+50.5)]=(object *)rc;
+                }
+                else
+                if (typ>45)
+                {
+                    planet *pl=new planet();
+                    pl->type=rand()%7+1;
+                    pl->id=2;
+                    if (startreg)
+                    {
+                        pl->air=true;
+                    }
+                    else
+                    {
+                        pl->air=!(rand()>0.25);
+                    }
+                    if (pl->air)
+                    {
+                        if (startreg)
+                        {
+                                pl->team=1;
+                                pl->offer=1;
+                                startreg=false;
+                        }
+                        else
+                        {
+                                pl->team=rand()%2;
+                                pl->offer=rand()%5;
+                        }
+                    }
+                    maps[(int)floor(r*cos((angle*M_PI)/180)+50.5)][(int)floor(r*sin((angle*M_PI)/180)+50.5)]=(object *)pl;
+                }
+                else
+                if (typ>15)
+                {
+                    for (int t=0;t<rand()%100+1;t++)
+                    {
+                        rock *rc=new rock();
+                        rc->gold=rand()%1000;
+                        rc->id=1;
+                        rc->type=rand()%8+1;
+                        rc->gold=rand()%5*100;
+                        angle=rand()%360;
+                        maps[(int)floor(r*cos((angle*M_PI)/180)+50.5)][(int)floor(r*sin((angle*M_PI)/180)+50.5)]=(object *)rc;
+                    }
+                }
+        }
+        return true;
+}
+//---------------------------------------------------------------------------
+char *Region::RegionInfo()
+{
+        string str="Region: "+intToStr(regx)+" "+intToStr(regy)+"\n";
+        char *tmp=new char[str.length()+1];
+        strcpy(tmp,str.c_str());
+        return tmp;
+}
+//---------------------------------------------------------------------------
+Region::~Region()
+{
+       Czysc();
+}
+//---------------------------------------------------------------------------
+char *Region::ObjectInfo(int x, int y)
+{
+        string str;
+        if (maps[x][y]->id==0)
+                str="Star: "+intToStr(x)+" "+intToStr(y)+"\n";
+        if (maps[x][y]->id==1)
+        {
+                str="Rock: "+intToStr(x)+" "+intToStr(y)+"\n";
+                rock *rc=(rock *)maps[x][y];
+                str=str+"Gold: "+intToStr(rc->gold)+"\n";
+        }
+        if (maps[x][y]->id==2)
+        {
+                str="Planet: "+intToStr(x)+" "+intToStr(y)+"\n";
+                planet *pl=(planet *)maps[x][y];
+                if (pl->air==true)
+                {
+                        str=str+"Has life.\n";
+                        if(pl->team==RockPeople)
+                                str=str+"Race: RockPeople\n";
+                        if(pl->team==Earth)
+                                str=str+"Race: Earth\n";
+                        }
+        }
+        char *tmp=new char[str.length()+1];
+        strcpy(tmp,str.c_str());
+        return tmp;
+}
+//---------------------------------------------------------------------------
+bool Region::HaveObject(int x, int y)
+{
+        if (maps[x][y]!=NULL)
+                return true;
+        return false;
+}
+//---------------------------------------------------------------------------
